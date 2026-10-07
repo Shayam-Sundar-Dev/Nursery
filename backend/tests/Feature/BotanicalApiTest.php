@@ -347,5 +347,89 @@ class BotanicalApiTest extends TestCase
             ->assertJsonCount(2, 'user.cart')
             ->assertJsonCount(2, 'user.wishlist');
     }
+
+    public function test_state_based_delivery_charges_in_checkout_and_orders(): void
+    {
+        // 1. Configure state shipping rates
+        \App\Models\SiteSetting::set('enable_state_shipping', true, 'shipping', 'boolean');
+        \App\Models\SiteSetting::set('free_shipping_threshold', 1000.00, 'shipping', 'number');
+        \App\Models\SiteSetting::set('default_shipping_fee', 80.00, 'shipping', 'number');
+        \App\Models\SiteSetting::set('state_shipping_rates', [
+            ['state' => 'Karnataka', 'fee' => 49.00, 'estimated_days' => '1-2 days'],
+            ['state' => 'Maharashtra', 'fee' => 89.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'Delhi', 'fee' => 99.00, 'estimated_days' => '3-4 days'],
+        ], 'shipping', 'json');
+
+        $variant = ProductVariant::first();
+
+        // 2. Checkout summary for Karnataka (should charge 49)
+        $karnatakaSummary = $this->postJson('/api/v1/checkout/summary', [
+            'items' => [
+                ['variant_id' => $variant->id, 'quantity' => 1],
+            ],
+            'state' => 'Karnataka',
+            'postal_code' => '560001',
+        ]);
+
+        $karnatakaSummary->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('breakdown.shipping', 49)
+            ->assertJsonPath('breakdown.is_state_rate_applied', true)
+            ->assertJsonPath('breakdown.estimated_transit_days', '1-2 days');
+
+        // 3. Checkout summary for Maharashtra (should charge 89)
+        $mhSummary = $this->postJson('/api/v1/checkout/summary', [
+            'items' => [
+                ['variant_id' => $variant->id, 'quantity' => 1],
+            ],
+            'state' => 'Maharashtra',
+            'postal_code' => '400001',
+        ]);
+
+        $mhSummary->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('breakdown.shipping', 89)
+            ->assertJsonPath('breakdown.is_state_rate_applied', true)
+            ->assertJsonPath('breakdown.estimated_transit_days', '3-4 days');
+
+        // 4. Checkout summary for an unlisted state (falls back to default 80.00)
+        $unlistedSummary = $this->postJson('/api/v1/checkout/summary', [
+            'items' => [
+                ['variant_id' => $variant->id, 'quantity' => 1],
+            ],
+            'state' => 'Random State',
+            'postal_code' => '500001',
+        ]);
+
+        $unlistedSummary->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('breakdown.shipping', 80)
+            ->assertJsonPath('breakdown.is_state_rate_applied', false);
+
+        // 5. Order creation with destination state Karnataka persists shipping_fee = 49
+        $orderRes = $this->postJson('/api/v1/checkout/orders', [
+            'customer_name' => 'Botanical Fan',
+            'customer_email' => 'fan@nursery.test',
+            'customer_phone' => '+91 9988776655',
+            'shipping_address' => [
+                'street' => '10 Cubbon Park Road',
+                'city' => 'Bengaluru',
+                'state' => 'Karnataka',
+                'postal_code' => '560001',
+            ],
+            'items' => [
+                ['variant_id' => $variant->id, 'quantity' => 1],
+            ],
+            'payment_method' => 'cod',
+        ]);
+
+        $orderRes->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $orderNumber = $orderRes->json('order.order_number');
+        $order = Order::where('order_number', $orderNumber)->first();
+        $this->assertEquals(49.00, (float) $order->shipping_fee);
+    }
 }
+
 

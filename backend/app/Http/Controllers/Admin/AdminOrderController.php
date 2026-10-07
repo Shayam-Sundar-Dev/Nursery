@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\SiteSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -109,4 +110,62 @@ class AdminOrderController extends Controller
 
         return back()->with('success', "Order #{$order->order_number} has been updated to {$validated['status']}.");
     }
+
+    /**
+     * Print shipping address label (From - To) for an individual order.
+     * Restricted to orders in Processing and Packaging status.
+     */
+    public function printShippingLabel(Order $order): View|RedirectResponse
+    {
+        if ($order->status !== 'processing') {
+            return redirect()->route('admin.orders.index', ['status' => 'processing'])
+                ->with('error', "Shipping address labels can only be printed for orders in Processing & Packaging status (Order #{$order->order_number} is '{$order->status}').");
+        }
+
+        $order->load(['items.product', 'items.variant', 'user']);
+        $orders = collect([$order]);
+        $fromAddress = $this->getNurseryFromAddress();
+
+        return view('admin.orders.print-shipping-label', compact('orders', 'fromAddress'));
+    }
+
+    /**
+     * Bulk print shipping address labels (From - To) for orders in Processing & Packaging status.
+     */
+    public function bulkPrintShippingLabels(Request $request): View|RedirectResponse
+    {
+        $query = Order::with(['items.product', 'items.variant', 'user'])
+            ->where('status', 'processing');
+
+        if ($ids = $request->input('order_ids')) {
+            $idArray = is_array($ids) ? $ids : explode(',', (string) $ids);
+            $query->whereIn('id', array_filter($idArray));
+        }
+
+        $orders = $query->latest()->get();
+
+        if ($orders->isEmpty()) {
+            return redirect()->route('admin.orders.index', ['status' => 'processing'])
+                ->with('error', 'No orders in Processing & Packaging status found to print.');
+        }
+
+        $fromAddress = $this->getNurseryFromAddress();
+
+        return view('admin.orders.print-shipping-label', compact('orders', 'fromAddress'));
+    }
+
+    /**
+     * Retrieve nursery sender information from site settings.
+     */
+    protected function getNurseryFromAddress(): array
+    {
+        return [
+            'company_name' => SiteSetting::get('site_name', 'Verdant Botanical Nursery & Garden'),
+            'tagline' => SiteSetting::get('site_tagline', 'Live-Plant Specialized Fulfillment & Rare Botanical Specimens'),
+            'address' => SiteSetting::get('nursery_address', '742 Evergreen Botanical Way, Greenhouse 4, Portland, OR 97201'),
+            'phone' => SiteSetting::get('contact_phone', '+1 (555) 321-GROW'),
+            'email' => SiteSetting::get('contact_email', 'care@verdantnursery.test'),
+        ];
+    }
 }
+

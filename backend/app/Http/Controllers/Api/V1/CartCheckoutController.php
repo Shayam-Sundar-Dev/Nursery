@@ -66,9 +66,12 @@ class CartCheckoutController extends Controller
     {
         $validated = $request->validate([
             'postal_code' => 'required|string|max:12',
+            'state' => 'nullable|string|max:100',
         ]);
 
         $code = trim($validated['postal_code']);
+        $state = $validated['state'] ?? null;
+        $stateShipping = SiteSetting::getShippingFeeForState($state);
 
         // In a real-world app, this queries carrier APIs (FedEx/UPS/ShipStation)
         // Restricted postal codes simulating remote/off-grid zones where live transit > 4 days
@@ -77,15 +80,21 @@ class CartCheckoutController extends Controller
         // Simulating winter/extreme heat seasons requiring thermal wrap
         $requiresThermalPackaging = str_starts_with($code, '0') || str_starts_with($code, '1');
 
+        $transitText = $stateShipping['estimated_days'] ?? ($isDeliverable ? '2-3 days' : null);
+
         return response()->json([
             'success' => true,
             'postal_code' => $code,
+            'state' => $state,
             'is_deliverable' => $isDeliverable,
-            'estimated_transit_days' => $isDeliverable ? 2 : null,
+            'estimated_transit_days' => $isDeliverable ? ($stateShipping['estimated_days'] ?? 2) : null,
+            'estimated_transit_text' => $transitText,
             'requires_thermal_packaging' => $requiresThermalPackaging,
             'insulation_fee' => $requiresThermalPackaging ? 4.50 : 0.00,
+            'shipping_fee' => $stateShipping['fee'],
+            'is_state_rate' => $stateShipping['matched'],
             'message' => $isDeliverable
-                ? ($requiresThermalPackaging ? 'Deliverable with climate-controlled insulation wrap.' : 'Standard 2-day live-plant transit available.')
+                ? ($requiresThermalPackaging ? 'Deliverable with climate-controlled insulation wrap.' : 'Standard live-plant transit available.')
                 : 'Live plants cannot currently be safely shipped to this remote destination due to transit time limits.',
         ]);
     }
@@ -100,6 +109,7 @@ class CartCheckoutController extends Controller
             'items.*.variant_id' => 'required|integer|exists:product_variants,id',
             'items.*.quantity' => 'required|integer|min:1',
             'postal_code' => 'nullable|string',
+            'state' => 'nullable|string|max:100',
             'coupon_code' => 'nullable|string|max:50',
         ]);
 
@@ -116,10 +126,13 @@ class CartCheckoutController extends Controller
         }
 
         $freeShippingThreshold = (float) SiteSetting::get('free_shipping_threshold', 75.00);
-        $defaultShippingFee = (float) SiteSetting::get('default_shipping_fee', 9.99);
         $thermalPackagingFee = (float) SiteSetting::get('thermal_packaging_fee', 4.50);
 
-        $shipping = $subtotal > $freeShippingThreshold ? 0.00 : $defaultShippingFee;
+        $state = $validated['state'] ?? null;
+        $stateShipping = SiteSetting::getShippingFeeForState($state);
+        $baseShippingFee = (float) $stateShipping['fee'];
+
+        $shipping = $subtotal > $freeShippingThreshold ? 0.00 : $baseShippingFee;
 
         // Coupon calculation
         $discount = 0.00;
@@ -167,6 +180,10 @@ class CartCheckoutController extends Controller
                 'discount' => round($discount, 2),
                 'tax' => $tax,
                 'shipping' => $shipping,
+                'base_shipping_fee' => $baseShippingFee,
+                'shipping_state' => $state,
+                'is_state_rate_applied' => $stateShipping['matched'],
+                'estimated_transit_days' => $stateShipping['estimated_days'],
                 'insulation_fee' => $insulationFee,
                 'thermal_packaging' => $insulationFee,
                 'total' => round($total, 2),
@@ -252,13 +269,16 @@ class CartCheckoutController extends Controller
             }
 
             $postalCode = $validated['shipping_address']['postal_code'];
+            $state = $validated['shipping_address']['state'] ?? null;
             $freeShippingThreshold = (float) SiteSetting::get('free_shipping_threshold', 75.00);
-            $defaultShippingFee = (float) SiteSetting::get('default_shipping_fee', 9.99);
             $thermalPackagingFee = (float) SiteSetting::get('thermal_packaging_fee', 4.50);
+
+            $stateShipping = SiteSetting::getShippingFeeForState($state);
+            $baseShippingFee = (float) $stateShipping['fee'];
 
             $requiresThermal = $hasLivePlant && (str_starts_with($postalCode, '0') || str_starts_with($postalCode, '1'));
             $insulationFee = $requiresThermal ? $thermalPackagingFee : 0.00;
-            $shipping = $subtotal > $freeShippingThreshold ? 0.00 : $defaultShippingFee;
+            $shipping = $subtotal > $freeShippingThreshold ? 0.00 : $baseShippingFee;
 
             // Coupon calculation & reservation
             $couponId = null;

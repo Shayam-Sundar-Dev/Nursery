@@ -38,10 +38,11 @@
                 <label class="block text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1">Botanical Type</label>
                 <select name="type" class="w-full py-2 px-3 text-sm rounded-xl border border-stone-200 bg-stone-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-botanical-500">
                     <option value="">All Types</option>
-                    <option value="plant" {{ request('type') == 'plant' ? 'selected' : '' }}>Live Plants</option>
-                    <option value="planter" {{ request('type') == 'planter' ? 'selected' : '' }}>Pots & Planters</option>
-                    <option value="soil_fertilizer" {{ request('type') == 'soil_fertilizer' ? 'selected' : '' }}>Soil & Nutrients</option>
-                    <option value="accessory" {{ request('type') == 'accessory' ? 'selected' : '' }}>Accessories</option>
+                    @foreach($productTypes as $pt)
+                        <option value="{{ $pt->slug }}" {{ request('type') == $pt->slug ? 'selected' : '' }}>
+                            {{ $pt->name }}
+                        </option>
+                    @endforeach
                 </select>
             </div>
 
@@ -118,21 +119,13 @@
 
                             <!-- Type -->
                             <td class="px-5 py-4">
-                                @if($product->type === 'plant')
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                        🌿 Live Plant
-                                    </span>
-                                @elseif($product->type === 'planter')
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">
-                                        🪴 Planter
-                                    </span>
-                                @elseif($product->type === 'soil_fertilizer')
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-800 border border-stone-300">
-                                        🌱 Soil & Care
+                                @if($product->productType)
+                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border {{ $product->productType->badge_class }}">
+                                        <span>{{ $product->productType->name }}</span>
                                     </span>
                                 @else
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-800 border border-blue-200">
-                                        🛠 Accessory
+                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-stone-700">
+                                        {{ ucfirst($product->type) }}
                                     </span>
                                 @endif
                             </td>

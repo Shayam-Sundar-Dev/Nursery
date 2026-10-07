@@ -158,6 +158,20 @@ class SiteSettingSeeder extends Seeder
                 'type' => 'string',
                 'is_public' => true,
             ],
+            [
+                'key' => 'enable_state_shipping',
+                'value' => '1',
+                'group' => 'shipping',
+                'type' => 'boolean',
+                'is_public' => true,
+            ],
+            [
+                'key' => 'state_shipping_rates',
+                'value' => json_encode(SiteSetting::defaultIndianStateRates()),
+                'group' => 'shipping',
+                'type' => 'json',
+                'is_public' => true,
+            ],
 
             // Contact & Nursery Physical Location
             [

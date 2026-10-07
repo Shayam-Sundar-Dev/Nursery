@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Api\V1\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PlantAttribute;
 use App\Models\Product;
+use App\Models\ProductType;
 use App\Models\ProductVariant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class AdminApiProductController extends Controller
 {
@@ -19,7 +21,7 @@ class AdminApiProductController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Product::with(['category', 'variants', 'plantAttributes']);
+        $query = Product::with(['category', 'productType', 'variants', 'plantAttributes']);
 
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
@@ -63,7 +65,7 @@ class AdminApiProductController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $product = Product::with(['category', 'variants', 'plantAttributes'])->find($id);
+        $product = Product::with(['category', 'productType', 'variants', 'plantAttributes'])->find($id);
 
         if (! $product) {
             return response()->json([
@@ -87,7 +89,7 @@ class AdminApiProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'botanical_name' => ['nullable', 'string', 'max:255'],
             'category_id' => ['required', 'exists:categories,id'],
-            'type' => ['required', 'in:plant,planter,soil_fertilizer,accessory'],
+            'type' => ['required', 'string', 'max:60', Rule::exists('product_types', 'slug')],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['required', 'string'],
             'base_price' => ['required', 'numeric', 'min:0'],
@@ -203,7 +205,7 @@ class AdminApiProductController extends Controller
                 ]);
             }
 
-            return $product->load(['category', 'variants', 'plantAttributes']);
+            return $product->load(['category', 'productType', 'variants', 'plantAttributes']);
         });
 
         return response()->json([
@@ -231,7 +233,7 @@ class AdminApiProductController extends Controller
             'name' => ['sometimes', 'required', 'string', 'max:255'],
             'botanical_name' => ['nullable', 'string', 'max:255'],
             'category_id' => ['sometimes', 'required', 'exists:categories,id'],
-            'type' => ['sometimes', 'required', 'in:plant,planter,soil_fertilizer,accessory'],
+            'type' => ['sometimes', 'required', 'string', 'max:60', Rule::exists('product_types', 'slug')],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['sometimes', 'required', 'string'],
             'base_price' => ['sometimes', 'required', 'numeric', 'min:0'],
@@ -265,7 +267,7 @@ class AdminApiProductController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Product updated successfully.',
-            'data' => $product->load(['category', 'variants', 'plantAttributes']),
+            'data' => $product->load(['category', 'productType', 'variants', 'plantAttributes']),
         ]);
     }
 

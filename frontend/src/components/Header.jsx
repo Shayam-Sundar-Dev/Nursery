@@ -150,6 +150,22 @@ export default function Header() {
             <Search className="w-3.5 h-3.5 text-stone-400 absolute left-3 top-2.5" />
           </form>
 
+          {/* Always-Accessible Cart Button (For Guests & Logged-in Members) */}
+          <button
+            onClick={() => setCartOpen(true)}
+            className="relative px-3 py-2 rounded-full bg-sand-100 hover:bg-sand-200/80 text-stone-800 transition shadow-2xs flex items-center gap-1.5 cursor-pointer border border-sand-200/60"
+            aria-label={`View cart with ${cartCount} items`}
+            title="View your botanical cart"
+          >
+            <ShoppingBag className="w-4 h-4 text-botanical-800" />
+            <span className="hidden sm:inline text-xs font-bold text-stone-700">Cart</span>
+            {cartCount > 0 && (
+              <span className="min-w-5 h-5 px-1.5 rounded-full bg-botanical-800 text-white text-[10px] font-extrabold flex items-center justify-center tabular-nums shadow-xs">
+                {cartCount}
+              </span>
+            )}
+          </button>
+
           {/* Customer Authentication Dropdown / Button */}
           {user ? (
             <div className="relative" ref={userMenuRef}>
@@ -371,70 +387,83 @@ export default function Header() {
               <span className="text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full font-bold">Find Match</span>
             </button>
 
-            {/* Auth-gated items on mobile */}
-            {user && (
-              <div className="pt-2 mt-1 border-t border-stone-100 space-y-1">
-                <p className="px-3.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider">My Account</p>
-
-                <button
-                  onClick={() => {
-                    setCartOpen(true);
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full px-3.5 py-2.5 rounded-2xl text-left hover:bg-sand-50 flex items-center justify-between cursor-pointer"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <ShoppingBag className="w-4 h-4 text-botanical-700" />
-                    <span>My Cart</span>
+            {/* Cart & Quick Access Items (Accessible for all) */}
+            <div className="pt-2 mt-1 border-t border-stone-100 space-y-1">
+              <button
+                onClick={() => {
+                  setCartOpen(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full px-3.5 py-2.5 rounded-2xl text-left hover:bg-sand-50 flex items-center justify-between cursor-pointer"
+              >
+                <span className="flex items-center gap-2.5">
+                  <ShoppingBag className="w-4 h-4 text-botanical-700" />
+                  <span className="text-xs font-semibold text-stone-800">My Cart</span>
+                </span>
+                {cartCount > 0 && (
+                  <span className="text-xs bg-botanical-100 text-botanical-800 px-2 py-0.5 rounded-full font-bold tabular-nums">
+                    {cartCount}
                   </span>
-                  {cartCount > 0 && (
-                    <span className="text-xs bg-botanical-100 text-botanical-800 px-2 py-0.5 rounded-full font-bold tabular-nums">
-                      {cartCount}
-                    </span>
-                  )}
-                </button>
+                )}
+              </button>
 
-                <button
-                  onClick={() => {
-                    navigateTo('wishlist');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full px-3.5 py-2.5 rounded-2xl text-left hover:bg-sand-50 flex items-center justify-between text-rose-700 cursor-pointer"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <Heart className="w-4 h-4 fill-rose-500" />
-                    <span>Saved Favorites</span>
+              <button
+                onClick={() => {
+                  navigateTo('wishlist');
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full px-3.5 py-2.5 rounded-2xl text-left hover:bg-sand-50 flex items-center justify-between text-rose-700 cursor-pointer"
+              >
+                <span className="flex items-center gap-2.5">
+                  <Heart className="w-4 h-4 fill-rose-500" />
+                  <span className="text-xs font-semibold">Saved Favorites</span>
+                </span>
+                {wishlistCount > 0 && (
+                  <span className="text-xs bg-rose-100 px-2 py-0.5 rounded-full font-bold tabular-nums">
+                    {wishlistCount}
                   </span>
-                  {wishlistCount > 0 && (
-                    <span className="text-xs bg-rose-100 px-2 py-0.5 rounded-full font-bold tabular-nums">
-                      {wishlistCount}
-                    </span>
-                  )}
-                </button>
+                )}
+              </button>
 
-                <button
-                  onClick={() => {
-                    navigateTo('orders');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="px-3.5 py-2.5 rounded-2xl text-left hover:bg-sand-50 flex items-center gap-2.5 w-full cursor-pointer"
-                >
-                  <Package className="w-4 h-4 text-stone-400" />
-                  <span>My Orders</span>
-                </button>
+              {user ? (
+                <>
+                  <button
+                    onClick={() => {
+                      navigateTo('orders');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="px-3.5 py-2.5 rounded-2xl text-left hover:bg-sand-50 flex items-center gap-2.5 w-full cursor-pointer text-xs font-semibold text-stone-700"
+                  >
+                    <Package className="w-4 h-4 text-stone-400" />
+                    <span>My Orders</span>
+                  </button>
 
-                <button
-                  onClick={() => {
-                    navigateTo('tracking');
-                    setMobileMenuOpen(false);
-                  }}
-                  className="px-3.5 py-2.5 rounded-2xl text-left hover:bg-sand-50 flex items-center gap-2.5 w-full cursor-pointer"
-                >
-                  <Truck className="w-4 h-4 text-stone-400" />
-                  <span>Track Live Plant Transit</span>
-                </button>
-              </div>
-            )}
+                  <button
+                    onClick={() => {
+                      navigateTo('tracking');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="px-3.5 py-2.5 rounded-2xl text-left hover:bg-sand-50 flex items-center gap-2.5 w-full cursor-pointer text-xs font-semibold text-stone-700"
+                  >
+                    <Truck className="w-4 h-4 text-stone-400" />
+                    <span>Track Live Plant Transit</span>
+                  </button>
+                </>
+              ) : (
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      setAuthModalOpen('login');
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-botanical-800 hover:bg-botanical-900 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>Sign In / Create Account</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </nav>
         </div>
       )}

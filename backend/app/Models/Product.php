@@ -81,6 +81,11 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
+    public function productType(): BelongsTo
+    {
+        return $this->belongsTo(ProductType::class, 'type', 'slug');
+    }
+
     public function plantAttributes(): HasOne
     {
         return $this->hasOne(PlantAttribute::class);

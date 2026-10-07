@@ -7,6 +7,7 @@
 @section('content')
 <div class="max-w-5xl mx-auto space-y-6" x-data="{
     productType: '{{ old('type', 'plant') }}',
+    botanicalTypeSlugs: {{ json_encode($productTypes->filter(fn($t) => $t->requires_botanical_attributes)->pluck('slug')->values()) }},
     variants: [
         { sku: '{{ old('variants.0.sku', '') }}', title: '{{ old('variants.0.title', 'Standard Specimen') }}', price: '{{ old('variants.0.price', '') }}', compare_at_price: '', stock_quantity: '{{ old('variants.0.stock_quantity', '10') }}', low_stock_threshold: '5', weight_grams: '1000' }
     ],
@@ -77,10 +78,11 @@
                 <div>
                     <label class="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">Product Type *</label>
                     <select name="type" x-model="productType" required class="w-full px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:ring-2 focus:ring-botanical-500 focus:outline-none">
-                        <option value="plant">Live Houseplant / Botanical</option>
-                        <option value="planter">Pot / Ceramic Planter</option>
-                        <option value="soil_fertilizer">Soil & Plant Nutrition</option>
-                        <option value="accessory">Garden Tool & Accessory</option>
+                        @foreach($productTypes as $pt)
+                            <option value="{{ $pt->slug }}" {{ old('type', 'plant') == $pt->slug ? 'selected' : '' }}>
+                                {{ $pt->name }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
 
@@ -274,7 +276,7 @@
         </div>
 
         <!-- 2. Botanical Plant Attributes & Care Guide -->
-        <div x-show="productType === 'plant'" x-cloak class="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs space-y-5">
+        <div x-show="botanicalTypeSlugs.includes(productType) || productType === 'plant'" x-cloak class="bg-white rounded-2xl p-6 border border-stone-200 shadow-xs space-y-5">
             <div class="border-b border-stone-100 pb-3">
                 <h3 class="text-base font-bold text-stone-900 flex items-center gap-2">
                     <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold">2</span>

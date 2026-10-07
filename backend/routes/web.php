@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminInventoryController;
 use App\Http\Controllers\Admin\AdminOrderController;
 use App\Http\Controllers\Admin\AdminProductController;
+use App\Http\Controllers\Admin\AdminProductTypeController;
 use App\Http\Controllers\Admin\AdminSiteSettingController;
 use App\Http\Controllers\Admin\AdminSliderController;
 use App\Http\Controllers\Admin\AdminUserController;
@@ -71,10 +72,21 @@ Route::prefix('admin')->name('admin.')->group(function () {
             Route::delete('/categories/{category}', [AdminCategoryController::class, 'destroy'])->name('categories.destroy');
         });
 
+        // Product Types (Super Admin & Botanist)
+        Route::get('/product-types', [AdminProductTypeController::class, 'index'])->name('product-types.index');
+        Route::middleware('role:super_admin,botanist')->group(function () {
+            Route::post('/product-types', [AdminProductTypeController::class, 'store'])->name('product-types.store');
+            Route::put('/product-types/{productType}', [AdminProductTypeController::class, 'update'])->name('product-types.update');
+            Route::delete('/product-types/{productType}', [AdminProductTypeController::class, 'destroy'])->name('product-types.destroy');
+            Route::patch('/product-types/{productType}/toggle-active', [AdminProductTypeController::class, 'toggleActive'])->name('product-types.toggle-active');
+        });
+
         // Orders & Transit (Super Admin, Fulfillment, Support)
         Route::middleware('role:super_admin,fulfillment,support')->group(function () {
             Route::get('/orders', [AdminOrderController::class, 'index'])->name('orders.index');
+            Route::get('/orders/print-shipping-labels', [AdminOrderController::class, 'bulkPrintShippingLabels'])->name('orders.bulk-print-shipping-labels');
             Route::get('/orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
+            Route::get('/orders/{order}/print-shipping-label', [AdminOrderController::class, 'printShippingLabel'])->name('orders.print-shipping-label');
         });
 
         // Order Fulfillment & Dispatch Status Modification (Super Admin & Fulfillment)

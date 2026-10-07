@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\PlantAttribute;
 use App\Models\Product;
+use App\Models\ProductType;
 use App\Models\ProductVariant;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class AdminProductController extends Controller
@@ -69,8 +71,9 @@ class AdminProductController extends Controller
 
         $products = $query->latest()->paginate(15)->withQueryString();
         $categories = Category::orderBy('name')->get();
+        $productTypes = ProductType::orderBy('sort_order')->orderBy('name')->get();
 
-        return view('admin.products.index', compact('products', 'categories'));
+        return view('admin.products.index', compact('products', 'categories', 'productTypes'));
     }
 
     /**
@@ -79,8 +82,9 @@ class AdminProductController extends Controller
     public function create(): View
     {
         $categories = Category::orderBy('name')->get();
+        $productTypes = ProductType::where('is_active', true)->orderBy('sort_order')->orderBy('name')->get();
 
-        return view('admin.products.create', compact('categories'));
+        return view('admin.products.create', compact('categories', 'productTypes'));
     }
 
     /**
@@ -92,7 +96,7 @@ class AdminProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'botanical_name' => ['nullable', 'string', 'max:255'],
             'category_id' => ['required', 'exists:categories,id'],
-            'type' => ['required', 'in:plant,planter,soil_fertilizer,accessory'],
+            'type' => ['required', 'string', 'max:60', Rule::exists('product_types', 'slug')],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['required', 'string'],
             'base_price' => ['required', 'numeric', 'min:0'],
@@ -197,8 +201,10 @@ class AdminProductController extends Controller
                 'requires_special_shipping' => $request->boolean('requires_special_shipping'),
             ]);
 
-            // Save Plant Attributes if type is plant or attributes provided
-            if ($validated['type'] === 'plant' || ! empty($validated['light_requirement'])) {
+            // Save Plant Attributes if type requires botanical attributes or attributes provided
+            $selectedType = ProductType::where('slug', $validated['type'])->first();
+            $requiresBotanical = $selectedType ? $selectedType->requires_botanical_attributes : ($validated['type'] === 'plant');
+            if ($requiresBotanical || ! empty($validated['light_requirement'])) {
                 $careInstructions = [];
                 if (! empty($validated['care_instructions_light'])) {
                     $careInstructions['light'] = $validated['care_instructions_light'];
@@ -265,8 +271,9 @@ class AdminProductController extends Controller
     {
         $product->load(['category', 'variants', 'plantAttributes']);
         $categories = Category::orderBy('name')->get();
+        $productTypes = ProductType::orderBy('sort_order')->orderBy('name')->get();
 
-        return view('admin.products.edit', compact('product', 'categories'));
+        return view('admin.products.edit', compact('product', 'categories', 'productTypes'));
     }
 
     /**
@@ -278,7 +285,7 @@ class AdminProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'botanical_name' => ['nullable', 'string', 'max:255'],
             'category_id' => ['required', 'exists:categories,id'],
-            'type' => ['required', 'in:plant,planter,soil_fertilizer,accessory'],
+            'type' => ['required', 'string', 'max:60', Rule::exists('product_types', 'slug')],
             'short_description' => ['nullable', 'string', 'max:500'],
             'description' => ['required', 'string'],
             'base_price' => ['required', 'numeric', 'min:0'],
@@ -377,7 +384,9 @@ class AdminProductController extends Controller
             ]);
 
             // Plant attributes
-            if ($validated['type'] === 'plant' || ! empty($validated['light_requirement'])) {
+            $selectedType = ProductType::where('slug', $validated['type'])->first();
+            $requiresBotanical = $selectedType ? $selectedType->requires_botanical_attributes : ($validated['type'] === 'plant');
+            if ($requiresBotanical || ! empty($validated['light_requirement'])) {
                 $careInstructions = [];
                 if (! empty($validated['care_instructions_light'])) {
                     $careInstructions['light'] = $validated['care_instructions_light'];

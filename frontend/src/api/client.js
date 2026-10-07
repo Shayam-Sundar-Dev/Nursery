@@ -43,6 +43,7 @@ export const api = {
   
   // Product Catalog & Categories
   getCategories: () => request('/categories'),
+  getProductTypes: () => request('/product-types'),
   getProducts: (params = {}) => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, val]) => {
@@ -66,9 +67,9 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ code, subtotal }),
   }),
-  checkDeliverability: (postalCode) => request('/shipping/check-deliverability', {
+  checkDeliverability: (postalCode, state = null) => request('/shipping/check-deliverability', {
     method: 'POST',
-    body: JSON.stringify({ postal_code: postalCode }),
+    body: JSON.stringify(typeof postalCode === 'object' ? postalCode : { postal_code: postalCode, state }),
   }),
   getCheckoutSummary: (payload) => request('/checkout/summary', {
     method: 'POST',

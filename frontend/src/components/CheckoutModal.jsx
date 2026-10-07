@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../api/client';
 import { useStore } from '../context/StoreContext';
+import INDIAN_STATES from '../constants/indianStates';
 import {
   X,
   ShieldCheck,
@@ -21,15 +22,30 @@ export default function CheckoutModal() {
     cart,
     cartSubtotal,
     currencySymbol,
+    freeShippingThreshold,
+    defaultShippingFee,
     thermalPackRequested,
     appliedCoupon,
+    enableStateShipping,
+    stateShippingRates,
+    getStateShippingRate,
     clearCart,
     navigateTo,
     addToast,
     user,
     token,
+    setAuthModalOpen,
     updateUserProfile,
   } = useStore();
+
+  // Guard against unauthenticated checkout in modal
+  useEffect(() => {
+    if (checkoutOpen && !user && !token) {
+      setCheckoutOpen(false);
+      addToast('Please sign in or create an account before checkout', 'info');
+      setAuthModalOpen('login');
+    }
+  }, [checkoutOpen, user, token, setCheckoutOpen, setAuthModalOpen, addToast]);
 
   const [saveProfileForFuture, setSaveProfileForFuture] = useState(true);
 
@@ -83,11 +99,11 @@ export default function CheckoutModal() {
     }));
   }, [user]);
 
-  // Recalculate summary from server API whenever items, coupon, or thermal pack changes
+  // Recalculate summary from server API whenever items, coupon, postal code, or state changes
   useEffect(() => {
     if (!checkoutOpen || cart.length === 0) return;
 
-    async function fetchSummary() {
+    const timer = setTimeout(async () => {
       try {
         setLoadingSummary(true);
         const payload = {
@@ -96,6 +112,7 @@ export default function CheckoutModal() {
             quantity: item.quantity,
           })),
           postal_code: form.postal_code,
+          state: form.state,
           coupon_code: appliedCoupon?.code,
           thermal_packaging: thermalPackRequested,
         };
@@ -109,10 +126,23 @@ export default function CheckoutModal() {
       } finally {
         setLoadingSummary(false);
       }
-    }
+    }, 200);
 
-    fetchSummary();
-  }, [checkoutOpen, cart, appliedCoupon, thermalPackRequested, form.postal_code]);
+    return () => clearTimeout(timer);
+  }, [checkoutOpen, cart, appliedCoupon, thermalPackRequested, form.postal_code, form.state]);
+
+  const allStatesList = useMemo(() => {
+    const list = new Set(INDIAN_STATES);
+    if (Array.isArray(stateShippingRates)) {
+      stateShippingRates.forEach((r) => {
+        if (r?.state) list.add(r.state);
+      });
+    }
+    return Array.from(list).sort((a, b) => a.localeCompare(b));
+  }, [stateShippingRates]);
+
+  const stateRateObj = getStateShippingRate(form.state);
+  const isFreeShipping = cartSubtotal >= (freeShippingThreshold || 75);
 
   if (!checkoutOpen) return null;
 
@@ -123,6 +153,11 @@ export default function CheckoutModal() {
 
   const handleOrderSubmit = async (e) => {
     e.preventDefault();
+    if (!user && !token) {
+      addToast('Please sign in or create an account to proceed to checkout', 'error');
+      setAuthModalOpen('login');
+      return;
+    }
     if (cart.length === 0) return;
 
     try {
@@ -404,16 +439,42 @@ export default function CheckoutModal() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-stone-600 mb-1">State *</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-semibold text-stone-600">State *</label>
+                      {stateRateObj && (
+                        <span className="text-[10px] font-bold text-botanical-800 bg-botanical-50 px-1.5 py-0.5 rounded border border-botanical-200/60">
+                          {isFreeShipping ? 'Free Delivery' : `${currencySymbol}${parseFloat(stateRateObj.fee).toFixed(0)}`}
+                        </span>
+                      )}
+                    </div>
                     <input
                       type="text"
                       name="state"
+                      list="modal-indian-states-list"
                       required
                       placeholder="e.g. Karnataka"
                       value={form.state}
                       onChange={handleInputChange}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 bg-white text-xs focus:ring-2 focus:ring-botanical-500 focus:outline-none"
                     />
+                    <datalist id="modal-indian-states-list">
+                      {allStatesList.map((st) => {
+                        const rate = getStateShippingRate(st);
+                        return (
+                          <option
+                            key={st}
+                            value={st}
+                            label={rate ? `${st} (${currencySymbol}${parseFloat(rate.fee).toFixed(0)}${rate.estimated_days ? ` • ${rate.estimated_days}` : ''})` : st}
+                          />
+                        );
+                      })}
+                    </datalist>
+                    {form.state && stateRateObj && (
+                      <p className="mt-1 text-[10px] text-emerald-800 flex items-center gap-1 font-medium">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                        <span>{stateRateObj.state}: {currencySymbol}{parseFloat(stateRateObj.fee).toFixed(2)} delivery{stateRateObj.estimated_days ? ` (${stateRateObj.estimated_days})` : ''}</span>
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-stone-600 mb-1">Postal code (PIN) *</label>
@@ -535,15 +596,36 @@ export default function CheckoutModal() {
                     </div>
                   )}
 
-                  <div className="flex justify-between text-stone-600">
-                    <span>Carrier transit delivery</span>
-                    <span className="font-semibold text-stone-800">
-                      {summary.qualifies_for_free_shipping ? (
-                        <span className="text-emerald-700 font-bold uppercase text-[10px]">Free shipping</span>
-                      ) : (
-                        `${currencySymbol}${(Number(summary.shipping) || 0).toFixed(2)}`
-                      )}
-                    </span>
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between text-stone-600">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="truncate">
+                          {summary.shipping_state || form.state
+                            ? `Delivery (${summary.shipping_state || form.state})`
+                            : 'Carrier transit delivery'}
+                        </span>
+                        {(summary.is_state_rate_applied || stateRateObj) && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-botanical-100 text-botanical-800 shrink-0">
+                            State Rate
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-semibold text-stone-800 shrink-0">
+                        {summary.qualifies_for_free_shipping ? (
+                          <span className="text-emerald-700 font-bold uppercase text-[10px]">Free shipping</span>
+                        ) : (
+                          `${currencySymbol}${(Number(summary.shipping) || 0).toFixed(2)}`
+                        )}
+                      </span>
+                    </div>
+                    {(summary.estimated_transit_days || stateRateObj?.estimated_days) && (
+                      <div className="flex justify-between text-[10px] text-stone-500">
+                        <span>Est. transit:</span>
+                        <span className="font-medium text-stone-700">
+                          {summary.estimated_transit_days || stateRateObj?.estimated_days}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex justify-between text-sm font-bold text-stone-900 pt-2 border-t border-stone-100">

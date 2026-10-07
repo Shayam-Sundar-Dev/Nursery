@@ -51,6 +51,8 @@ class AdminSiteSettingController extends Controller
             'free_shipping_threshold' => ['nullable', 'numeric', 'min:0'],
             'default_shipping_fee' => ['nullable', 'numeric', 'min:0'],
             'thermal_packaging_fee' => ['nullable', 'numeric', 'min:0'],
+            'enable_state_shipping' => ['nullable'],
+            'state_shipping_rates' => ['nullable'],
             'weather_alert_active' => ['nullable'],
             'weather_alert_message' => ['nullable', 'string', 'max:500'],
             'guarantee_days' => ['nullable', 'integer', 'min:0'],
@@ -184,6 +186,37 @@ class AdminSiteSettingController extends Controller
 
         if ($request->has('has_shipping_form')) {
             SiteSetting::set('weather_alert_active', $request->boolean('weather_alert_active'), 'shipping', 'boolean');
+            SiteSetting::set('enable_state_shipping', $request->boolean('enable_state_shipping'), 'shipping', 'boolean');
+
+            if ($request->has('state_shipping_rates')) {
+                $rawRates = $request->input('state_shipping_rates');
+                $rates = [];
+
+                if (is_string($rawRates)) {
+                    $decoded = json_decode($rawRates, true);
+                    if (is_array($decoded)) {
+                        $rawRates = $decoded;
+                    }
+                }
+
+                if (is_array($rawRates)) {
+                    foreach ($rawRates as $key => $entry) {
+                        $stateName = is_array($entry) ? trim((string) ($entry['state'] ?? '')) : trim((string) $key);
+                        $fee = is_array($entry) ? (float) ($entry['fee'] ?? 0) : (float) $entry;
+                        $days = is_array($entry) ? trim((string) ($entry['estimated_days'] ?? '')) : '';
+
+                        if (! empty($stateName)) {
+                            $rates[] = [
+                                'state' => $stateName,
+                                'fee' => round(max(0, $fee), 2),
+                                'estimated_days' => $days ?: '2-3 days',
+                            ];
+                        }
+                    }
+                }
+
+                SiteSetting::set('state_shipping_rates', $rates, 'shipping', 'json');
+            }
         }
 
         if ($request->has('has_status_form')) {

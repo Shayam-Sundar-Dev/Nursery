@@ -92,6 +92,95 @@ class SiteSetting extends Model
     }
 
     /**
+     * Default state delivery rate schedule for Indian states and union territories.
+     */
+    public static function defaultIndianStateRates(): array
+    {
+        return [
+            ['state' => 'Karnataka', 'fee' => 49.00, 'estimated_days' => '1-2 days'],
+            ['state' => 'Tamil Nadu', 'fee' => 69.00, 'estimated_days' => '2-3 days'],
+            ['state' => 'Kerala', 'fee' => 69.00, 'estimated_days' => '2-3 days'],
+            ['state' => 'Andhra Pradesh', 'fee' => 79.00, 'estimated_days' => '2-3 days'],
+            ['state' => 'Telangana', 'fee' => 79.00, 'estimated_days' => '2-3 days'],
+            ['state' => 'Goa', 'fee' => 69.00, 'estimated_days' => '2-3 days'],
+            ['state' => 'Puducherry', 'fee' => 69.00, 'estimated_days' => '2-3 days'],
+            ['state' => 'Maharashtra', 'fee' => 89.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'Gujarat', 'fee' => 99.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'Madhya Pradesh', 'fee' => 99.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'Chhattisgarh', 'fee' => 99.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'Odisha', 'fee' => 99.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'Delhi', 'fee' => 99.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'Haryana', 'fee' => 99.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'Uttar Pradesh', 'fee' => 109.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'Rajasthan', 'fee' => 109.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'West Bengal', 'fee' => 109.00, 'estimated_days' => '3-4 days'],
+            ['state' => 'Punjab', 'fee' => 119.00, 'estimated_days' => '4-5 days'],
+            ['state' => 'Chandigarh', 'fee' => 119.00, 'estimated_days' => '4-5 days'],
+            ['state' => 'Bihar', 'fee' => 119.00, 'estimated_days' => '4-5 days'],
+            ['state' => 'Jharkhand', 'fee' => 119.00, 'estimated_days' => '4-5 days'],
+            ['state' => 'Uttarakhand', 'fee' => 129.00, 'estimated_days' => '4-5 days'],
+            ['state' => 'Himachal Pradesh', 'fee' => 129.00, 'estimated_days' => '4-5 days'],
+            ['state' => 'Assam', 'fee' => 149.00, 'estimated_days' => '5-6 days'],
+            ['state' => 'Jammu and Kashmir', 'fee' => 149.00, 'estimated_days' => '5-6 days'],
+            ['state' => 'Ladakh', 'fee' => 169.00, 'estimated_days' => '5-6 days'],
+            ['state' => 'Sikkim', 'fee' => 149.00, 'estimated_days' => '5-6 days'],
+            ['state' => 'Meghalaya', 'fee' => 149.00, 'estimated_days' => '5-6 days'],
+            ['state' => 'Manipur', 'fee' => 169.00, 'estimated_days' => '5-7 days'],
+            ['state' => 'Nagaland', 'fee' => 169.00, 'estimated_days' => '5-7 days'],
+            ['state' => 'Mizoram', 'fee' => 169.00, 'estimated_days' => '5-7 days'],
+            ['state' => 'Tripura', 'fee' => 169.00, 'estimated_days' => '5-7 days'],
+            ['state' => 'Arunachal Pradesh', 'fee' => 169.00, 'estimated_days' => '5-7 days'],
+            ['state' => 'Andaman and Nicobar Islands', 'fee' => 199.00, 'estimated_days' => '6-8 days'],
+            ['state' => 'Lakshadweep', 'fee' => 199.00, 'estimated_days' => '6-8 days'],
+        ];
+    }
+
+    /**
+     * Resolve delivery charge and transit estimates based on customer destination state.
+     */
+    public static function getShippingFeeForState(?string $state): array
+    {
+        $defaultFee = (float) static::get('default_shipping_fee', 9.99);
+        $enableStateShipping = (bool) static::get('enable_state_shipping', true);
+        $rates = static::get('state_shipping_rates', []);
+
+        if (! $enableStateShipping || empty(trim((string) $state))) {
+            return [
+                'fee' => $defaultFee,
+                'matched' => false,
+                'state' => $state,
+                'estimated_days' => null,
+            ];
+        }
+
+        $cleanState = trim(mb_strtolower((string) $state));
+
+        if (is_array($rates) && ! empty($rates)) {
+            foreach ($rates as $key => $rate) {
+                $stateName = is_array($rate) ? ($rate['state'] ?? '') : $key;
+                $fee = is_array($rate) ? (float) ($rate['fee'] ?? $defaultFee) : (float) $rate;
+                $days = is_array($rate) ? ($rate['estimated_days'] ?? null) : null;
+
+                if (trim(mb_strtolower((string) $stateName)) === $cleanState) {
+                    return [
+                        'fee' => $fee,
+                        'matched' => true,
+                        'state' => $stateName,
+                        'estimated_days' => $days,
+                    ];
+                }
+            }
+        }
+
+        return [
+            'fee' => $defaultFee,
+            'matched' => false,
+            'state' => $state,
+            'estimated_days' => null,
+        ];
+    }
+
+    /**
      * Get all cached settings in structured format.
      */
     public static function allCached(): array

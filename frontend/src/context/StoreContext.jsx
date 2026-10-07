@@ -332,6 +332,15 @@ export function StoreProvider({ children }) {
   const freeShippingThreshold = parseFloat(siteSettings?.shipping?.free_shipping_threshold ?? 75.00);
   const defaultShippingFee = parseFloat(siteSettings?.shipping?.default_shipping_fee ?? 9.99);
   const thermalPackagingFee = parseFloat(siteSettings?.shipping?.thermal_packaging_fee ?? 4.50);
+  const enableStateShipping = siteSettings?.shipping?.enable_state_shipping !== false && siteSettings?.shipping?.enable_state_shipping !== '0';
+  const stateShippingRates = Array.isArray(siteSettings?.shipping?.state_shipping_rates) ? siteSettings.shipping.state_shipping_rates : [];
+
+  const getStateShippingRate = (stateName) => {
+    if (!stateName || !enableStateShipping) return null;
+    if (!Array.isArray(stateShippingRates) || stateShippingRates.length === 0) return null;
+    const clean = stateName.trim().toLowerCase();
+    return stateShippingRates.find((r) => r && r.state && r.state.trim().toLowerCase() === clean) || null;
+  };
   const maintenanceMode = Boolean(siteSettings?.status?.maintenance_mode);
   const maintenanceMessage = siteSettings?.status?.maintenance_message || 'Our greenhouses are undergoing scheduled care updates.';
   const announcement = siteSettings?.announcement;
@@ -401,7 +410,7 @@ export function StoreProvider({ children }) {
     setCart((prev) => {
       return prev
         .map((item) => {
-          if (item.variantId === variantId) {
+          if (item.variantId === variantId || item.id === variantId) {
             const nextQty = item.quantity + delta;
             return nextQty > 0 ? { ...item, quantity: nextQty } : null;
           }
@@ -412,7 +421,7 @@ export function StoreProvider({ children }) {
   };
 
   const removeFromCart = (variantId) => {
-    setCart((prev) => prev.filter((item) => item.variantId !== variantId));
+    setCart((prev) => prev.filter((item) => item.variantId !== variantId && item.id !== variantId));
     addToast('Item removed from cart', 'info');
   };
 
@@ -475,6 +484,9 @@ export function StoreProvider({ children }) {
         freeShippingThreshold,
         defaultShippingFee,
         thermalPackagingFee,
+        enableStateShipping,
+        stateShippingRates,
+        getStateShippingRate,
         maintenanceMode,
         maintenanceMessage,
         announcement,

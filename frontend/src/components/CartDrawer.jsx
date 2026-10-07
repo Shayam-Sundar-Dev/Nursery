@@ -13,6 +13,9 @@ import {
   ArrowRight,
   Leaf,
   ChevronDown,
+  User,
+  MapPin,
+  Lock,
 } from 'lucide-react';
 
 export default function CartDrawer() {
@@ -79,6 +82,11 @@ export default function CartDrawer() {
   };
 
   const handleProceedToCheckout = () => {
+    if (!user && !token) {
+      addToast('Please sign in or create an account to proceed to checkout', 'info');
+      setAuthModalOpen('login');
+      return;
+    }
     setCartOpen(false);
     navigateTo('checkout');
   };
@@ -143,57 +151,40 @@ export default function CartDrawer() {
           {/* Cart Items List: Clean airy rows with hairline dividers */}
           <div className="flex-1 overflow-y-auto px-5 divide-y divide-stone-100 min-h-0">
             {cart.length === 0 ? (
-              !user && !token ? (
-                <div className="h-full flex flex-col items-center justify-center text-center py-12 px-4">
-                  <div className="w-16 h-16 rounded-3xl bg-botanical-50 text-botanical-800 flex items-center justify-center mb-4 shadow-subtle border border-botanical-100">
-                    <ShoppingBag className="w-7 h-7 text-botanical-700" />
-                  </div>
-                  <h3 className="font-serif text-xl font-bold text-stone-900">Sign In to View Your Cart</h3>
-                  <p className="text-xs text-stone-500 mt-1.5 max-w-xs leading-relaxed">
-                    Please sign in or create an account to view saved botanicals, redeem promotional coupons, and manage live transit orders.
-                  </p>
-                  <div className="flex flex-col gap-2.5 mt-6 w-full max-w-xs">
-                    <button
-                      onClick={() => {
-                        setCartOpen(false);
-                        setAuthModalOpen('login');
-                      }}
-                      className="w-full h-11 rounded-full bg-botanical-800 hover:bg-botanical-900 text-white font-bold text-xs uppercase tracking-wider shadow-md shadow-botanical-900/10 transition flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                    >
-                      <span>Sign In / Register</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setCartOpen(false);
-                        navigateTo('catalog');
-                      }}
-                      className="w-full h-11 rounded-full border border-stone-200 hover:bg-sand-50 text-stone-700 font-bold text-xs uppercase tracking-wider transition cursor-pointer"
-                    >
-                      Browse All Flora
-                    </button>
-                  </div>
+              <div className="h-full flex flex-col items-center justify-center text-center py-12 px-4">
+                <div className="w-16 h-16 rounded-3xl bg-sand-100 text-stone-400 flex items-center justify-center mb-4 shadow-subtle border border-sand-200">
+                  <ShoppingBag className="w-7 h-7 text-botanical-700" />
                 </div>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center py-12 px-4">
-                  <div className="w-16 h-16 rounded-3xl bg-sand-100 text-stone-400 flex items-center justify-center mb-4 shadow-subtle border border-sand-200">
-                    <Leaf className="w-7 h-7 text-botanical-600" />
-                  </div>
-                  <h3 className="font-serif text-xl font-bold text-stone-800">Your Botanical Cart is Empty</h3>
-                  <p className="text-xs text-stone-500 mt-1.5 max-w-xs leading-relaxed">
-                    Explore acclimatized rare houseplants, tropical foliage, and specialized botanical care essentials.
-                  </p>
+                <h3 className="font-serif text-xl font-bold text-stone-800">Your Botanical Cart is Empty</h3>
+                <p className="text-xs text-stone-500 mt-1.5 max-w-xs leading-relaxed">
+                  Explore acclimatized rare houseplants, terracotta planters, and specialized botanical care essentials.
+                </p>
+                <div className="flex flex-col gap-2.5 mt-6 w-full max-w-xs">
                   <button
                     onClick={() => {
                       setCartOpen(false);
                       navigateTo('catalog');
                     }}
-                    className="mt-6 h-11 px-6 rounded-full bg-botanical-800 hover:bg-botanical-900 text-white font-bold text-xs uppercase tracking-wider shadow-md transition cursor-pointer"
+                    className="w-full h-11 px-6 rounded-full bg-botanical-800 hover:bg-botanical-900 text-white font-bold text-xs uppercase tracking-wider shadow-md shadow-botanical-900/10 transition cursor-pointer active:scale-98 flex items-center justify-center gap-2"
                   >
-                    Explore Plant Collection
+                    <span>Explore Plant Collection</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-emerald-300" />
                   </button>
+
+                  {!user && (
+                    <button
+                      onClick={() => {
+                        setCartOpen(false);
+                        setAuthModalOpen('login');
+                      }}
+                      className="w-full h-10 rounded-full border border-stone-200 hover:bg-sand-50 text-stone-700 font-bold text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+                    >
+                      <User className="w-3.5 h-3.5 text-stone-400" />
+                      <span>Sign In to Sync Saved Cart</span>
+                    </button>
+                  )}
                 </div>
-              )
+              </div>
             ) : (
               cart.map((item) => (
                 <div
@@ -224,7 +215,7 @@ export default function CartDrawer() {
                       </div>
 
                       <button
-                        onClick={() => removeFromCart(item.variantId)}
+                        onClick={() => removeFromCart(item.variantId || item.id)}
                         className="w-7 h-7 rounded-full text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition flex items-center justify-center cursor-pointer shrink-0"
                         title="Remove item"
                         aria-label="Remove item"
@@ -385,9 +376,31 @@ export default function CartDrawer() {
                 onClick={handleProceedToCheckout}
                 className="h-12 w-full rounded-full bg-botanical-800 hover:bg-botanical-900 active:scale-[0.98] text-white font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2.5 shadow-lg shadow-botanical-950/20 transition-all duration-200 cursor-pointer group"
               >
-                <span>Proceed to Botanical Checkout</span>
-                <ArrowRight className="w-4 h-4 text-emerald-300 group-hover:translate-x-1 transition-transform" />
+                {!user && !token ? (
+                  <>
+                    <Lock className="w-4 h-4 text-emerald-300" />
+                    <span>Sign In to Proceed to Checkout</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Proceed to Botanical Checkout</span>
+                    <ArrowRight className="w-4 h-4 text-emerald-300 group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
               </button>
+
+              {!user && !token && (
+                <div className="flex items-center justify-center gap-1.5 text-[11px] text-amber-800 bg-amber-50/90 border border-amber-200/80 rounded-xl py-1.5 px-3">
+                  <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span className="font-medium">Sign in is required before proceeding to checkout</span>
+                </div>
+              )}
+
+              {/* Location-based Pricing Notice */}
+              <div className="flex items-center justify-center gap-1.5 pt-1 text-[11px] text-stone-600 text-center">
+                <MapPin className="w-3.5 h-3.5 text-botanical-700 shrink-0" />
+                <span className="font-bold text-stone-700">Estimated amount may vary based on the location</span>
+              </div>
             </div>
           )}
         </div>

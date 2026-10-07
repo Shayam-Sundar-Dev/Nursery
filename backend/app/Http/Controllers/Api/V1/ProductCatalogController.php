@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,7 @@ class ProductCatalogController extends Controller
         $validated = $request->validate([
             'category' => 'nullable|string|max:100',
             'category_id' => 'nullable',
-            'type' => 'nullable|string|in:plant,seed,planter,soil_fertilizer,tool,care_bundle',
+            'type' => 'nullable|string|max:100',
             'light' => 'nullable|string|max:100',
             'light_requirement' => 'nullable|string|max:100',
             'watering' => 'nullable|string|max:100',
@@ -119,6 +120,25 @@ class ProductCatalogController extends Controller
         return response()->json([
             'success' => true,
             'data' => $categories,
+        ]);
+    }
+
+    /**
+     * Display listing of active product types with live published product counts.
+     */
+    public function productTypes(): JsonResponse
+    {
+        $types = ProductType::active()
+            ->withCount(['products' => function ($query) {
+                $query->published();
+            }])
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('name', 'asc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $types,
         ]);
     }
 

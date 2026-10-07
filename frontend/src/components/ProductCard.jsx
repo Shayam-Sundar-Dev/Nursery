@@ -153,7 +153,7 @@ export default function ProductCard({ product }) {
             <button
               onClick={handleQuickAdd}
               className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-botanical-800 hover:bg-botanical-900 active:scale-95 text-white shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer shrink-0 flex items-center justify-center group"
-              title={!user ? 'Sign in to add to cart' : 'Add to cart'}
+              title="Add to cart"
               aria-label={`Add ${product.name} to cart`}
             >
               <ShoppingBag className="w-4 h-4 text-emerald-300 group-hover:scale-110 transition-transform" />

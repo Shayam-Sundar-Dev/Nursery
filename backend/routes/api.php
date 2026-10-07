@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminApiDashboardController;
 use App\Http\Controllers\Api\V1\Admin\AdminApiInventoryController;
 use App\Http\Controllers\Api\V1\Admin\AdminApiOrderController;
 use App\Http\Controllers\Api\V1\Admin\AdminApiProductController;
+use App\Http\Controllers\Api\V1\Admin\AdminApiProductTypeController;
 use App\Http\Controllers\Api\V1\Admin\AdminApiSiteSettingController;
 use App\Http\Controllers\Api\V1\Admin\AdminApiSliderController;
 use App\Http\Controllers\Api\V1\Admin\AdminApiUserController;
@@ -28,6 +29,7 @@ Route::get('/user', function (Request $request) {
 Route::prefix('v1')->group(function () {
     // Botanical Catalog & Categories (Customer)
     Route::get('/categories', [ProductCatalogController::class, 'categories']);
+    Route::get('/product-types', [ProductCatalogController::class, 'productTypes']);
     Route::get('/products', [ProductCatalogController::class, 'index']);
     Route::get('/products/{slug}', [ProductCatalogController::class, 'show']);
     Route::post('/plant-finder', [ProductCatalogController::class, 'plantFinder']);
@@ -104,6 +106,16 @@ Route::prefix('v1')->group(function () {
                 Route::post('/categories', [AdminApiCategoryController::class, 'store']);
                 Route::match(['put', 'patch'], '/categories/{id}', [AdminApiCategoryController::class, 'update']);
                 Route::delete('/categories/{id}', [AdminApiCategoryController::class, 'destroy']);
+            });
+
+            // Product Types
+            Route::get('/product-types', [AdminApiProductTypeController::class, 'index']);
+            Route::get('/product-types/{id}', [AdminApiProductTypeController::class, 'show']);
+            Route::middleware('role:super_admin,botanist')->group(function () {
+                Route::post('/product-types', [AdminApiProductTypeController::class, 'store']);
+                Route::match(['put', 'patch'], '/product-types/{id}', [AdminApiProductTypeController::class, 'update']);
+                Route::delete('/product-types/{id}', [AdminApiProductTypeController::class, 'destroy']);
+                Route::patch('/product-types/{id}/toggle-active', [AdminApiProductTypeController::class, 'toggleActive']);
             });
 
             // Promotional Coupons & Discounts (Super Admin & Botanist)

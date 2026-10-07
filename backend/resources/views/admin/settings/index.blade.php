@@ -14,7 +14,13 @@
     maintenanceMode: {{ ($grouped['status']['maintenance_mode'] ?? false) ? 'true' : 'false' }},
     logoPreview: '{{ $grouped['general']['site_logo'] ?? '' }}',
     faviconPreview: '{{ $grouped['general']['site_favicon'] ?? '' }}',
-    ogPreview: '{{ $grouped['seo']['meta_og_image'] ?? '' }}'
+    ogPreview: '{{ $grouped['seo']['meta_og_image'] ?? '' }}',
+    enableStateShipping: {{ ($grouped['shipping']['enable_state_shipping'] ?? true) ? 'true' : 'false' }},
+    stateRates: {{ json_encode($grouped['shipping']['state_shipping_rates'] ?? \App\Models\SiteSetting::defaultIndianStateRates()) }},
+    stateSearch: '',
+    newStateName: '',
+    newStateFee: '',
+    newStateDays: '2-3 days'
 }" class="space-y-6">
 
     <!-- Top Info Bar / Quick Stats -->
@@ -464,6 +470,144 @@
                                name="guarantee_text"
                                value="{{ old('guarantee_text', $grouped['shipping']['guarantee_text'] ?? '30-Day Healthy Plant Arrival Guarantee') }}"
                                class="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:outline-hidden focus:ring-2 focus:ring-botanical-500 text-sm font-medium text-stone-900">
+                    </div>
+                </div>
+
+                <!-- State-Based Delivery Charges -->
+                <div class="pt-6 border-t border-stone-100 space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                            <h4 class="text-base font-bold text-stone-900 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-botanical-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                                State-Based Delivery Charges
+                            </h4>
+                            <p class="text-xs text-stone-500">Configure customized live-plant carrier fees and transit times per destination state or region.</p>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox"
+                                       name="enable_state_shipping"
+                                       value="1"
+                                       x-model="enableStateShipping"
+                                       class="sr-only peer">
+                                <div class="w-11 h-6 bg-stone-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-botanical-700"></div>
+                                <span class="ml-2 text-xs font-bold text-stone-700">Enable State-Based Rates</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div x-show="enableStateShipping" x-transition class="space-y-4 bg-stone-50/70 p-5 rounded-2xl border border-stone-200">
+                        <!-- Top actions: search and reset button -->
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="relative w-full sm:w-72">
+                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-stone-400">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                                </span>
+                                <input type="text"
+                                       x-model="stateSearch"
+                                       placeholder="Filter states (e.g. Karnataka, Delhi)..."
+                                       class="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-stone-200 bg-white focus:ring-2 focus:ring-botanical-500">
+                            </div>
+
+                            <button type="button"
+                                    @click="stateRates = {{ json_encode(\App\Models\SiteSetting::defaultIndianStateRates()) }}"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-xs font-semibold text-stone-700 shadow-2xs transition cursor-pointer">
+                                <svg class="w-3.5 h-3.5 text-botanical-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                Reset to Default Indian State Rates
+                            </button>
+                        </div>
+
+                        <!-- Hidden JSON input submitted with the form -->
+                        <input type="hidden" name="state_shipping_rates" :value="JSON.stringify(stateRates)">
+
+                        <!-- Rates Table -->
+                        <div class="bg-white rounded-xl border border-stone-200 overflow-hidden shadow-2xs max-h-96 overflow-y-auto">
+                            <table class="min-w-full divide-y divide-stone-200 text-xs text-left">
+                                <thead class="bg-stone-100 text-stone-600 font-bold uppercase tracking-wider sticky top-0 z-10">
+                                    <tr>
+                                        <th class="py-2.5 px-4">State / Union Territory</th>
+                                        <th class="py-2.5 px-4">Delivery Charge (₹)</th>
+                                        <th class="py-2.5 px-4">Estimated Transit</th>
+                                        <th class="py-2.5 px-4 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-stone-100 text-stone-800">
+                                    <template x-for="(item, index) in stateRates.filter(r => !stateSearch || r.state.toLowerCase().includes(stateSearch.toLowerCase()))" :key="item.state">
+                                        <tr class="hover:bg-sand-50/50 transition">
+                                            <td class="py-2 px-4 font-bold text-stone-900" x-text="item.state"></td>
+                                            <td class="py-2 px-4">
+                                                <div class="relative w-28">
+                                                    <span class="absolute left-2.5 top-1.5 text-stone-400 font-bold">₹</span>
+                                                    <input type="number"
+                                                           step="0.01"
+                                                           min="0"
+                                                           x-model.number="item.fee"
+                                                           class="w-full pl-6 pr-2 py-1 rounded-lg border border-stone-200 text-xs font-bold text-stone-900 focus:ring-1 focus:ring-botanical-500">
+                                                </div>
+                                            </td>
+                                            <td class="py-2 px-4">
+                                                <input type="text"
+                                                       x-model="item.estimated_days"
+                                                       class="w-32 px-2.5 py-1 rounded-lg border border-stone-200 text-xs text-stone-700 focus:ring-1 focus:ring-botanical-500"
+                                                       placeholder="e.g. 2-3 days">
+                                            </td>
+                                            <td class="py-2 px-4 text-right">
+                                                <button type="button"
+                                                        @click="stateRates = stateRates.filter(r => r.state !== item.state)"
+                                                        class="text-red-500 hover:text-red-700 font-semibold p-1 hover:bg-red-50 rounded transition cursor-pointer"
+                                                        title="Remove rate">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Add new state rate bar -->
+                        <div class="pt-2 flex flex-wrap items-center gap-2">
+                            <input type="text"
+                                   x-model="newStateName"
+                                   placeholder="New state name (e.g. Haryana)"
+                                   class="px-3 py-1.5 text-xs rounded-xl border border-stone-200 bg-white flex-1 min-w-[150px] focus:ring-2 focus:ring-botanical-500">
+
+                            <div class="relative w-28">
+                                <span class="absolute left-2.5 top-1.5 text-stone-400 font-bold text-xs">₹</span>
+                                <input type="number"
+                                       step="0.01"
+                                       min="0"
+                                       x-model="newStateFee"
+                                       placeholder="Charge"
+                                       class="w-full pl-6 pr-2 py-1.5 text-xs rounded-xl border border-stone-200 bg-white font-bold focus:ring-2 focus:ring-botanical-500">
+                            </div>
+
+                            <input type="text"
+                                   x-model="newStateDays"
+                                   placeholder="Transit (e.g. 2-3 days)"
+                                   class="px-3 py-1.5 text-xs rounded-xl border border-stone-200 bg-white w-32 focus:ring-2 focus:ring-botanical-500">
+
+                            <button type="button"
+                                    @click="if(newStateName.trim() && newStateFee !== '') {
+                                        const exists = stateRates.find(r => r.state.toLowerCase() === newStateName.trim().toLowerCase());
+                                        if (exists) {
+                                            exists.fee = parseFloat(newStateFee) || 0;
+                                            exists.estimated_days = newStateDays.trim() || '2-3 days';
+                                        } else {
+                                            stateRates.push({
+                                                state: newStateName.trim(),
+                                                fee: parseFloat(newStateFee) || 0,
+                                                estimated_days: newStateDays.trim() || '2-3 days'
+                                            });
+                                        }
+                                        newStateName = '';
+                                        newStateFee = '';
+                                    }"
+                                    class="px-4 py-1.5 rounded-xl bg-botanical-800 hover:bg-botanical-900 text-white font-bold text-xs shadow-xs transition cursor-pointer">
+                                + Add State Rate
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

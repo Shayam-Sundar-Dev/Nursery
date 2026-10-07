@@ -50,8 +50,8 @@ export default function WishlistView() {
     }
   };
 
-  // 1. Unauthenticated Gate
-  if (!user && !token) {
+  // 1. Unauthenticated Gate with no local favorites
+  if (!user && !token && wishlist.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-20 sm:py-28 text-center space-y-6">
         <div className="w-20 h-20 mx-auto rounded-3xl bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 shadow-subtle">
@@ -59,25 +59,25 @@ export default function WishlistView() {
         </div>
         <div className="space-y-2">
           <h2 className="font-serif text-3xl sm:text-4xl font-bold text-stone-900 text-balance">
-            Sign in to view saved botanicals
+            Your Botanical Wishlist is Empty
           </h2>
           <p className="text-stone-500 max-w-md mx-auto text-xs sm:text-sm leading-relaxed text-pretty">
-            Please sign in to access your curated botanical favorites, review species care profiles, and save rare varieties for your home.
+            Browse our greenhouse collection and click the heart icon on any plant or planter to save it to your wishlist.
           </p>
         </div>
         <div className="flex flex-wrap justify-center gap-3 pt-3">
           <button
-            onClick={() => setAuthModalOpen('login')}
+            onClick={() => navigateTo('catalog')}
             className="h-12 px-6 rounded-full bg-botanical-800 hover:bg-botanical-900 text-white font-bold text-xs uppercase tracking-wider shadow-md shadow-botanical-900/20 transition flex items-center gap-2.5 active:scale-98 cursor-pointer"
           >
-            <span>Sign In / Create Account</span>
+            <span>Explore Botanical Catalog</span>
             <ArrowRight className="w-3.5 h-3.5 text-emerald-300" />
           </button>
           <button
-            onClick={() => navigateTo('catalog')}
+            onClick={() => setAuthModalOpen('login')}
             className="h-12 px-6 rounded-full border border-stone-300 hover:bg-white text-stone-700 font-bold text-xs uppercase tracking-wider transition cursor-pointer"
           >
-            Explore Catalog
+            Sign In / Register
           </button>
         </div>
       </div>
@@ -123,6 +123,18 @@ export default function WishlistView() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-6 sm:space-y-8">
       {/* Top Header & Add All to Cart Deck */}
+      {!user && (
+        <div className="p-3.5 rounded-2xl bg-sand-100/80 border border-sand-200/80 flex items-center justify-between text-xs text-stone-700">
+          <span>Saved to this browser. Sign in to sync your wishlist and cart across all your devices.</span>
+          <button
+            onClick={() => setAuthModalOpen('login')}
+            className="text-botanical-800 font-bold hover:underline cursor-pointer shrink-0 ml-3"
+          >
+            Sign In
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 pb-6 border-b border-stone-200/80">
         <div>
           <button
